@@ -25,15 +25,76 @@ mongoose.connect(dbUrl+'SQLTest', {
       console.error('Error connecting to MongoDB:', error);
     });
 
+
+
+let otpStore = {}; // Store OTPs with expiration times
+// Configure Nodemailer
+const transporter = nodemailer.createTransport({
+    service: "gmail",
+    auth: {
+        user: "harijo560@gmail.com", // replace with your email
+        pass: "wdlujrkaxkwooalf" // replace with your app-specific password
+    }
+});
+
+// Generate a random 6-digit OTP
+function generateOTP() {
+    return Math.floor(100000 + Math.random() * 900000).toString();
+}
+
+// Send OTP email
+function sendOtpEmail(to, otp) {
+    const mailOptions = {
+        from: "harijo560@gmail.com",
+        to: to,
+        subject: "Your OTP Code",
+        html: `<p>Your OTP code is <b>${otp}</br>. It is valid for 5 minutes.</p>`
+    };
+
+    return transporter.sendMail(mailOptions);
+}
+
+// Middleware to check OTP validity
+function checkOtpValidity(otp, email) {
+    if (otpStore[email] && otpStore[email].otp === otp && otpStore[email].expires > Date.now()) {
+        return true;
+    }
+    return false;
+}
+
+
+app.post('/user-already',(req, res) => {
+    const email= req.body.email;
+    usersModel.findOne({email : req.body.email})
+    .then(user => {
+        if(user){
+            res.json(false);
+        }else{
+            const otp = generateOTP();
+            const expirationTime = Date.now() + 5 * 60 * 1000; // 5 minutes from now
+            otpStore[email] = { otp, expires: expirationTime };
+            sendOtpEmail(email, otp);
+            res.json("OTP sent successfully.");
+        }
+    })
+    // .then(users => res.json(users))
+    .catch(err => res.json(err))
+});
+
 app.post('/register',(req, res) => {
     usersModel.findOne({email : req.body.email})
     .then(user => {
         if(user){
             res.json(false);
         }else{
-            usersModel.create(req.body)
-            .then(users => res.json(users))
-            .catch(err => res.json(err))
+            if (!checkOtpValidity(req.body.user_otp, req.body.email)) {
+                return res.json(false);
+            }else{
+                
+                usersModel.create(req.body)
+                .then(users => res.json(users))
+                .catch(err => res.json(err))
+            }
         }
     })
     // .then(users => res.json(users))
