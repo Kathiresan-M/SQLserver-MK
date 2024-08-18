@@ -1,9 +1,13 @@
 const mongoose = require('mongoose');
 const questionSchema = new mongoose.Schema({
+    MainTopic: { type: String, required: true },
+    SubTopic: { type: String, required: true },
     question: { type: String, required: true }
 });
+
 const topicsSchema = new mongoose.Schema({
-    finished: { type: String, required: true }
+    MainTopic: { type: String, required: true },
+    SubTopic: { type: String, required: true }
 });
 
 const usersSchema = new mongoose.Schema({
