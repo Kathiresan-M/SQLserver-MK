@@ -125,7 +125,15 @@ app.post('/update-curdetails',(req, res) => {
     usersModel.findOne({email : emailId})
     .then(user => {
         if(user){
-            res.json({username:user.username,email:user.email,mark:user.mark,phoneNumber:user.phoneNumber,college:user.college,passedOutYear:user.passedOutYear});
+            res.json({username:user.username,
+                email:user.email,
+                mark:user.mark,
+                phoneNumber:user.phoneNumber,
+                college:user.college,
+                passedOutYear:user.passedOutYear,
+                topics_completed : user.topics_completed,
+                topics_incompleted: user.topics_incompleted,
+                process: user.process});
         }else{
             res.json(user);
         }
@@ -137,7 +145,6 @@ app.post('/update-curdetails',(req, res) => {
 // Update user route
 app.post('/update-profile', async (req, res) => {
     const { email, name: username, phoneNumber, college, passedOutYear } = req.body;
-    console.log(email);
     try {
         const user = await usersModel.findOneAndUpdate(
             { email },
@@ -158,10 +165,10 @@ app.post('/update-profile', async (req, res) => {
 
 
 //Question add into to db
-app.post('/add-question', (req, res) => {
-    const { emailId, question } = req.body;
+app.post('/add-question',(req, res) => {
+    const { emailId,question } = req.body;
     usersModel.findOne({email : emailId})
-    .then(user => {
+    .then(async user => {
         if(user.questionsAttend.some(q => q.question === question.question)){
             res.json(false);
         }else{
@@ -177,6 +184,62 @@ app.post('/add-question', (req, res) => {
     // .then(users => res.json(users))
     .catch(err => res.json(err))
 });
+
+
+//Find the Question length
+app.post('/question-length',async (req, res) => {
+    const { emailId, MainTopic, SubTopic } = req.body;
+
+    try {
+        const user = await usersModel.findOne({ email : emailId });
+
+        if (user) {
+            // Filter the questions that match the given Maintopic and subtopic
+            const matchingQuestions = user.questionsAttend.filter(
+                q => q.MainTopic === MainTopic && q.SubTopic === SubTopic
+            );
+
+            // Count the number of matching questions
+            const count = matchingQuestions.length;
+
+            res.json({ count });
+        } else {
+            res.json({ message: 'User not found.' });
+        }
+    } catch (error) {
+        console.error(error);
+        res.status(500).json({ message: 'Server error', error });
+    }
+});
+
+
+//Mark as Completed
+app.post('/update-topic',async (req, res) => {
+    const { emailId, MainTopic, SubTopic,question } = req.body;
+
+    try {
+        const user = await usersModel.findOne({ email : emailId });
+        if (user) {
+            if(user.topicsFinished.some(q => q.MainTopic === MainTopic && q.SubTopic === SubTopic)){
+                res.json(false);
+            }else{
+                usersModel.findOneAndUpdate(
+                    { email: emailId },
+                    { $push: {topicsFinished : question},$inc: { topics_completed: 1 ,topics_incompleted: -1} },
+                    { new: true, useFindAndModify: false }  // Return the updated document
+                )
+                .then(updatedUser => res.json(updatedUser))
+                .catch(err => res.json(err));
+            }
+        } else {
+            res.json({ message: 'User not found.' });
+        }
+    } catch (error) {
+        console.error(error);
+        res.status(500).json({ message: 'Server error', error });
+    }
+});
+
 
 //Execute Query api
 app.get("/execute-query", (req, res) => {
